@@ -212,13 +212,33 @@ public class CarController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// How far ahead (in metres) an obstacle may legitimately be at the moment its
+    /// trigger is reported. A trigger fires only on the physics tick where the two
+    /// colliders FIRST overlap, so deltaZ there is already (car half-depth + obstacle
+    /// half-depth) plus up to one tick of closing travel. A hard 2.5m cap was narrower
+    /// than the 3.2m-deep Congestion hazard, whose first contact sits at 3.3m, so its
+    /// impact was rejected (and never retried) and the pod drove straight through it.
+    /// </summary>
+    private float LongitudinalAllowance(Transform obstacleTransform)
+    {
+        Collider mine = GetComponent<Collider>();
+        Collider theirs = obstacleTransform != null ? obstacleTransform.GetComponentInChildren<Collider>() : null;
+
+        if (mine == null || theirs == null) return 2.5f;
+
+        // Sum of the two half-depths closes the gap; +1m absorbs the worst case of one
+        // physics tick of closing travel (25 m/s * 0.02s = 0.5m) with margin to spare.
+        return mine.bounds.extents.z + theirs.bounds.extents.z + 1f;
+    }
+
     private bool IsSpatialHit(Transform obstacleTransform)
     {
         if (obstacleTransform == null) return false;
 
         // 1. Longitudinal distance: must be near the car bumper (not 50m ahead!)
         float deltaZ = obstacleTransform.position.z - transform.position.z;
-        if (deltaZ > 2.5f || deltaZ < -3.5f) return false;
+        if (deltaZ > LongitudinalAllowance(obstacleTransform) || deltaZ < -3.5f) return false;
 
         // 2. Lateral distance: must be in the same lane!
         float deltaX = Mathf.Abs(obstacleTransform.position.x - transform.position.x);

@@ -24,9 +24,11 @@ public class HudController : MonoBehaviour
     [SerializeField] private UnityEngine.UI.Text lowChargeText;
     [Range(0f, 1f)]
     [SerializeField] private float lowChargeThreshold = 0.25f;
-    [SerializeField] private Color chargeHighColor = new Color(0.30f, 0.88f, 0.45f);
-    [SerializeField] private Color chargeMidColor = new Color(0.95f, 0.75f, 0.25f);
-    [SerializeField] private Color chargeLowColor = new Color(0.95f, 0.28f, 0.22f);
+    // The same palette the menu is set in, inline because this is a runtime type and the theme is
+    // editor-only: bone for a full pack, amber as it thins, blood when it is nearly gone.
+    [SerializeField] private Color chargeHighColor = new Color(0.949f, 0.914f, 0.827f);
+    [SerializeField] private Color chargeMidColor = new Color(1f, 0.722f, 0.341f);
+    [SerializeField] private Color chargeLowColor = new Color(0.784f, 0.204f, 0.129f);
 
     [Header("Route")]
     [SerializeField] private UnityEngine.UI.Text distanceText;
@@ -42,8 +44,15 @@ public class HudController : MonoBehaviour
     [SerializeField] private UnityEngine.UI.Text resultTitleText;
     [SerializeField] private UnityEngine.UI.Text resultBodyText;
     [SerializeField] private GameObject restartButton;
-    [SerializeField] private Color successColor = new Color(0.35f, 0.95f, 0.55f);
-    [SerializeField] private Color failureColor = new Color(1f, 0.42f, 0.38f);
+
+    [Tooltip("Shown only with a lost shipment: the way out of the run and back to the title screen.")]
+    [SerializeField] private GameObject menuButton;
+
+    [Tooltip("Full-screen ink scrim revealed with the result, so the card reads over the frozen road.")]
+    [SerializeField] private UnityEngine.UI.Image resultScrim;
+
+    [SerializeField] private Color successColor = new Color(1f, 0.722f, 0.341f);
+    [SerializeField] private Color failureColor = new Color(0.784f, 0.204f, 0.129f);
 
     [Header("Impact Flash")]
     [SerializeField] private UnityEngine.UI.Image flashOverlay;
@@ -60,11 +69,25 @@ public class HudController : MonoBehaviour
     private int lastDistrictIndex = -1;
     private bool resultShown;
 
+    /// <summary>Where RUN AGAIN sits while RETURN TO MENU is standing beside it.</summary>
+    private float restartPairedOffsetX;
+
     private void Awake()
     {
         if (bannerGroup != null) bannerGroup.alpha = 0f;
-        if (restartButton != null) restartButton.SetActive(false);
+        if (restartButton != null)
+        {
+            restartButton.SetActive(false);
+
+            // Read off the card the builder laid out, because ShowResult re-centres it whenever
+            // the return button is not standing beside it.
+            RectTransform restartRect = restartButton.GetComponent<RectTransform>();
+            if (restartRect != null) restartPairedOffsetX = restartRect.anchoredPosition.x;
+        }
+
+        if (menuButton != null) menuButton.SetActive(false);
         if (lowChargeText != null) lowChargeText.gameObject.SetActive(false);
+        if (resultScrim != null) resultScrim.gameObject.SetActive(false);
 
         SetVisible(resultTitleText, false);
         SetVisible(resultBodyText, false);
@@ -126,7 +149,7 @@ public class HudController : MonoBehaviour
             if (low)
             {
                 float pulse = 0.55f + (0.45f * Mathf.Sin(Time.unscaledTime * 6f));
-                lowChargeText.color = new Color(1f, 0.45f, 0.35f, pulse);
+                lowChargeText.color = new Color(0.784f, 0.204f, 0.129f, pulse);
             }
         }
     }
@@ -223,7 +246,26 @@ public class HudController : MonoBehaviour
             resultBodyText.text = body;
         }
 
-        if (restartButton != null) restartButton.SetActive(true);
+        if (resultScrim != null) resultScrim.gameObject.SetActive(true);
+
+        // The way back to the title screen is offered only with a lost shipment, and RUN AGAIN
+        // takes the middle of the card whenever it is standing on its own.
+        bool paired = !success;
+
+        if (menuButton != null) menuButton.SetActive(paired);
+
+        if (restartButton != null)
+        {
+            restartButton.SetActive(true);
+
+            RectTransform restartRect = restartButton.GetComponent<RectTransform>();
+            if (restartRect != null)
+            {
+                Vector2 position = restartRect.anchoredPosition;
+                position.x = paired ? restartPairedOffsetX : 0f;
+                restartRect.anchoredPosition = position;
+            }
+        }
     }
 
     // ------------------------------------------------------------- impact flash
@@ -231,14 +273,14 @@ public class HudController : MonoBehaviour
     /// <summary>Red flash for a lost shipment.</summary>
     public void FlashImpact(float intensity)
     {
-        flashColor = new Color(0.85f, 0.12f, 0.08f);
+        flashColor = new Color(0.784f, 0.204f, 0.129f);
         flashAlpha = Mathf.Clamp01(intensity);
     }
 
     /// <summary>Cyan flash for a grant absorbing a hit.</summary>
     public void FlashGrant()
     {
-        flashColor = new Color(0.25f, 0.85f, 1f);
+        flashColor = new Color(0.949f, 0.914f, 0.827f);
         flashAlpha = 0.35f;
     }
 

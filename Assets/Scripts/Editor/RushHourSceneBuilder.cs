@@ -340,7 +340,11 @@ public static class RushHourSceneBuilder
 
     // =============================================================== atmosphere
 
-    private static void ConfigureAtmosphere()
+    /// <summary>
+    /// Hazy overcast city air. Shared by the playable scene and the start screen, so the menu and
+    /// the run are unmistakably the same road.
+    /// </summary>
+    public static void ConfigureAtmosphere()
     {
         Material skybox = AssetDatabase.GetBuiltinExtraResource<Material>("Default-Skybox.mat");
         if (skybox != null) RenderSettings.skybox = skybox;
@@ -357,7 +361,11 @@ public static class RushHourSceneBuilder
         RenderSettings.reflectionIntensity = 0.6f;
     }
 
-    private static Light BuildSun()
+    /// <summary>
+    /// Neutral daylight, high enough to keep the street readable. Shared by the playable scene and
+    /// the start screen.
+    /// </summary>
+    public static Light BuildSun()
     {
         GameObject lightGo = new GameObject("Directional Light");
         Light dirLight = lightGo.AddComponent<Light>();
@@ -767,7 +775,7 @@ public static class RushHourSceneBuilder
             new Vector3(diameter, 0.10f, diameter), new Vector3(0f, 0f, 90f), mat);
     }
 
-    private static void BuildPostProcessing()
+    public static void BuildPostProcessing()
     {
         GameObject volumeGo = new GameObject("Post Processing");
         Volume volume = volumeGo.AddComponent<Volume>();
@@ -799,6 +807,181 @@ public static class RushHourSceneBuilder
         volume.sharedProfile = profile;
     }
 
+    // ============================================================ start screen
+
+    /// <summary>
+    /// The road slice behind the start menu: the resurfaced clinic stretch of Route 7 with kerbs,
+    /// pavements and a thinning skyline. Built from the same palette as gameplay, so the menu is
+    /// unmistakably the same road. Returns the lane dashes, which are the only pieces the menu
+    /// needs to move.
+    /// </summary>
+    public static GameObject[] BuildHeroStreet()
+    {
+        GameObject root = new GameObject("StartHero");
+        Random.InitState(20240921);
+
+        Material roadMat = Palette("Road");
+        Material laneMat = Palette("LaneMarking");
+        Material edgeMat = Palette("EdgeLine");
+        Material curbMat = Palette("Curb");
+        Material sidewalkMat = Palette("Sidewalk");
+        Material resurfacedMat = Palette("Clinic_Road");
+
+        MarkStatic(CreatePrimitive("Road", PrimitiveType.Plane,
+            new Vector3(0f, 0f, 180f), new Vector3(1.2f, 1f, 20f), roadMat, root.transform, false));
+
+        MarkStatic(CreatePrimitive("Road_Resurfaced", PrimitiveType.Cube,
+            new Vector3(0f, ResurfacedTopY * 0.5f, 180f), new Vector3(8.4f, ResurfacedTopY, 200f),
+            resurfacedMat, root.transform, false));
+
+        for (int side = -1; side <= 1; side += 2)
+        {
+            string label = side < 0 ? "Left" : "Right";
+
+            MarkStatic(CreatePrimitive("EdgeLine_" + label, PrimitiveType.Cube,
+                new Vector3(side * 3.85f, ResurfacedTopY + 0.01f, 180f), new Vector3(0.13f, 0.02f, 200f),
+                edgeMat, root.transform, false));
+
+            MarkStatic(CreatePrimitive("Curb_" + label, PrimitiveType.Cube,
+                new Vector3(side * 4.25f, 0.14f, 180f), new Vector3(0.5f, 0.28f, 200f),
+                curbMat, root.transform, false));
+
+            MarkStatic(CreatePrimitive("Sidewalk_" + label, PrimitiveType.Cube,
+                new Vector3(side * 5.5f, 0.10f, 180f), new Vector3(2.5f, 0.20f, 200f),
+                sidewalkMat, root.transform, false));
+        }
+
+        // The dashes span exactly one wrap cycle, so recycling them by that same length keeps
+        // their spacing intact instead of stacking two of them on the same z.
+        List<GameObject> dashes = new List<GameObject>();
+        for (float z = 100f; z < 280f; z += 10f)
+        {
+            foreach (float x in new[] { -1.25f, 1.25f })
+            {
+                dashes.Add(CreatePrimitive("LaneDash", PrimitiveType.Cube,
+                    new Vector3(x, ResurfacedTopY + 0.01f, z), new Vector3(0.13f, 0.02f, 4.5f),
+                    laneMat, root.transform, false));
+            }
+        }
+
+        int index = 0;
+        for (int side = -1; side <= 1; side += 2)
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                float depth = Random.Range(9f, 15f);
+                float width = Random.Range(7f, 12f);
+                float height = Random.Range(5f, 14f);
+                float z = 112f + (i * 36f) + Random.Range(-6f, 6f);
+                float x = side * (12f + (depth * 0.5f));
+                string label = (side < 0 ? "W" : "E") + index.ToString("00");
+
+                MarkStatic(CreatePrimitive("Building_" + label, PrimitiveType.Cube,
+                    new Vector3(x, height * 0.5f, z), new Vector3(width, height, depth),
+                    Palette("Building_" + Random.Range(0, BuildingColors.Length)), root.transform, false));
+
+                MarkStatic(CreatePrimitive("BuildingCrown_" + label, PrimitiveType.Cube,
+                    new Vector3(x, height + 0.6f, z), new Vector3(width * 0.55f, 1.2f, depth * 0.55f),
+                    Palette("Building_Crown"), root.transform, false));
+
+                index++;
+            }
+        }
+
+        return dashes.ToArray();
+    }
+
+    /// <summary>
+    /// The courier pod as a static prop for the start screen: the same skirt, body, cabin, cargo
+    /// box, light strips, pack strip, breathing seal and wheels as the playable pod, with none of
+    /// the runtime components, so nothing on the menu drives or drains charge.
+    /// </summary>
+    public static Transform BuildHeroPod(Vector3 position, float yaw)
+    {
+        GameObject pod = new GameObject("HeroPod");
+        pod.transform.position = position;
+        pod.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+
+        GameObject visual = new GameObject("Visual");
+        visual.transform.SetParent(pod.transform, false);
+        Transform rig = visual.transform;
+
+        AddPart(rig, "Skirt", PrimitiveType.Cube, new Vector3(0f, 0.24f, 0f),
+            new Vector3(1.26f, 0.30f, 3.28f), Vector3.zero, Palette("Pod_Skirt"));
+        AddPart(rig, "Body", PrimitiveType.Cube, new Vector3(0f, 0.64f, 0f),
+            new Vector3(1.20f, 0.52f, 3.18f), Vector3.zero, Palette("Pod_Body"));
+        AddPart(rig, "Cabin", PrimitiveType.Cube, new Vector3(0f, 1.04f, 0.74f),
+            new Vector3(1.04f, 0.44f, 1.30f), Vector3.zero, Palette("Pod_Glass"));
+        AddPart(rig, "Cargo", PrimitiveType.Cube, new Vector3(0f, 1.03f, -0.86f),
+            new Vector3(1.10f, 0.62f, 1.30f), Vector3.zero, Palette("Pod_Cargo"));
+        AddPart(rig, "AccentStripe", PrimitiveType.Cube, new Vector3(0f, 0.42f, 0f),
+            new Vector3(1.28f, 0.12f, 3.24f), Vector3.zero, Palette("Pod_Accent"));
+        AddPart(rig, "HeadLight_Strip", PrimitiveType.Cube, new Vector3(0f, 0.58f, 1.60f),
+            new Vector3(1.10f, 0.09f, 0.06f), Vector3.zero, Palette("Pod_HeadLight"));
+        AddPart(rig, "TailLight_Strip", PrimitiveType.Cube, new Vector3(0f, 0.58f, -1.60f),
+            new Vector3(1.06f, 0.09f, 0.06f), Vector3.zero, Palette("Pod_TailLight"));
+        AddPart(rig, "ChargeStrip", PrimitiveType.Cube, new Vector3(0f, 1.03f, -1.61f),
+            new Vector3(0.96f, 0.34f, 0.06f), Vector3.zero, Palette("Pod_ChargeStrip"));
+        AddPart(rig, "CargoSeal", PrimitiveType.Cube, new Vector3(0f, 1.40f, -0.86f),
+            new Vector3(0.62f, 0.42f, 0.08f), Vector3.zero, Palette("Pod_CargoSeal"));
+
+        for (int sx = -1; sx <= 1; sx += 2)
+        {
+            for (int sz = -1; sz <= 1; sz += 2)
+            {
+                AddPart(rig, "Wheel_" + sx + "_" + sz, PrimitiveType.Cylinder,
+                    new Vector3(sx * 0.62f, 0.25f, sz * 1.14f), new Vector3(0.50f, 0.10f, 0.50f),
+                    new Vector3(0f, 0f, 90f), Palette("Pod_Wheel"));
+            }
+        }
+
+        return pod.transform;
+    }
+
+    /// <summary>
+    /// Material lookup by asset name, recreating any swatch the playable scene has not written
+    /// yet from the same palette it uses, so a start-screen build on a fresh project still gets
+    /// the right colours instead of untextured magenta.
+    /// </summary>
+    private static Material Palette(string name)
+    {
+        Material existing = AssetDatabase.LoadAssetAtPath<Material>(MaterialFolder + "/" + name + ".mat");
+        if (existing != null) return existing;
+
+        switch (name)
+        {
+            case "Road": return CreateLitMaterial("Road", RoadColor, 0.08f);
+            case "LaneMarking": return CreateLitMaterial("LaneMarking", LaneColor, 0.25f);
+            case "EdgeLine": return CreateLitMaterial("EdgeLine", EdgeLineColor, 0.20f);
+            case "Curb": return CreateLitMaterial("Curb", CurbColor, 0.10f);
+            case "Sidewalk": return CreateLitMaterial("Sidewalk", SidewalkColor, 0.05f);
+            case "Clinic_Road": return CreateLitMaterial("Clinic_Road", ClinicRoadColor, 0.30f);
+            case "Building_Crown": return CreateLitMaterial("Building_Crown", new Color(0.50f, 0.53f, 0.55f), 0.30f);
+            case "Pod_Body": return CreateLitMaterial("Pod_Body", PodBodyColor, 0.58f, 0.15f);
+            case "Pod_Cargo": return CreateLitMaterial("Pod_Cargo", PodCargoColor, 0.42f, 0.05f);
+            case "Pod_Glass": return CreateLitMaterial("Pod_Glass", PodGlassColor, 0.90f, 0.35f);
+            case "Pod_Skirt": return CreateLitMaterial("Pod_Skirt", PodSkirtColor, 0.18f);
+            case "Pod_Wheel": return CreateLitMaterial("Pod_Wheel", PodWheelColor, 0.22f);
+            case "Pod_Accent": return CreateLitMaterial("Pod_Accent", AccentColor, 0.55f, 0.05f);
+            case "Pod_HeadLight": return CreateLitMaterial("Pod_HeadLight", HeadLightColor, 0.60f, 0.05f, HeadLightColor, 2.2f);
+            case "Pod_TailLight": return CreateLitMaterial("Pod_TailLight", TailLightColor, 0.60f, 0.05f, TailLightColor, 2.2f);
+            case "Pod_ChargeStrip": return CreateLitMaterial("Pod_ChargeStrip", ChargeGlowColor, 0.55f, 0.05f, ChargeGlowColor, 2.6f);
+            case "Pod_CargoSeal": return CreateLitMaterial("Pod_CargoSeal", new Color(0.45f, 1.00f, 0.72f), 0.50f, 0.05f, new Color(0.45f, 1.00f, 0.72f), 1.6f);
+        }
+
+        if (name.StartsWith("Building_"))
+        {
+            int swatch;
+            if (int.TryParse(name.Substring("Building_".Length), out swatch) &&
+                swatch >= 0 && swatch < BuildingColors.Length)
+            {
+                return CreateLitMaterial(name, BuildingColors[swatch], 0.12f);
+            }
+        }
+
+        return null;
+    }
+
     // ===================================================================== HUD
 
     private struct HudRefs
@@ -814,7 +997,9 @@ public static class RushHourSceneBuilder
         public Text resultTitle;
         public Text resultBody;
         public GameObject restartButton;
+        public GameObject menuButton;
         public Image flashOverlay;
+        public Image resultScrim;
     }
 
     private static HudController BuildHud(GameManager gameManager, BatterySystem battery, out HudRefs hud)
@@ -840,66 +1025,83 @@ public static class RushHourSceneBuilder
         else esGo.AddComponent<StandaloneInputModule>();
 
         // Impact flash sits at the bottom of the stack so it never washes out the readouts.
-        hud.flashOverlay = CreateUIImage(canvasGo.transform, "FlashOverlay", new Color(0f, 0f, 0f, 0f),
+        hud.flashOverlay = RushHourUiTheme.Box(canvasGo.transform, "FlashOverlay", new Color(0f, 0f, 0f, 0f),
             Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f),
-            Vector2.zero, Vector2.zero, false).GetComponent<Image>();
+            Vector2.zero, Vector2.zero).GetComponent<Image>();
+
+        // The scrim the result card reads over: ink across the frozen road, but under the chrome
+        // and under the impact flash, both of which have to survive the end of a run.
+        hud.resultScrim = RushHourUiTheme.Box(canvasGo.transform, "ResultScrim",
+            RushHourUiTheme.WithAlpha(RushHourUiTheme.Ink, 0.84f),
+            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f),
+            Vector2.zero, Vector2.zero).GetComponent<Image>();
 
         // ---------------------------------------------------------- charge panel
-        GameObject panel = CreateUIImage(canvasGo.transform, "ChargePanel",
-            new Color(0.03f, 0.04f, 0.06f, 0.62f),
+        GameObject panel = RushHourUiTheme.Outline(canvasGo.transform, "ChargePanel",
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
-            new Vector2(28f, -28f), new Vector2(384f, 150f), false);
+            new Vector2(28f, -28f), new Vector2(384f, 150f), 2f, 0.70f);
 
-        CreateUIText(panel.transform, "Caption", "PACK CHARGE", font, 20,
-            TextAnchor.MiddleLeft, new Color(0.60f, 0.68f, 0.76f), FontStyle.Bold,
+        RushHourUiTheme.Type(panel.transform, "Caption", RushHourUiTheme.Spread("PACK CHARGE"), font, 18,
+            TextAnchor.MiddleLeft, RushHourUiTheme.Amber, FontStyle.Bold,
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
-            new Vector2(20f, -14f), new Vector2(240f, 28f));
+            new Vector2(20f, -14f), new Vector2(280f, 28f), false);
 
-        hud.chargeValue = CreateUIText(panel.transform, "Value", "100%", font, 32,
-            TextAnchor.MiddleRight, Color.white, FontStyle.Bold,
+        hud.chargeValue = RushHourUiTheme.Type(panel.transform, "Value", "100%", font, 32,
+            TextAnchor.MiddleRight, RushHourUiTheme.Bone, FontStyle.Bold,
             new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
             new Vector2(-20f, -12f), new Vector2(160f, 36f));
 
-        GameObject barBg = CreateUIImage(panel.transform, "ChargeBar",
-            new Color(0.06f, 0.07f, 0.09f, 0.95f),
-            new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(0f, 18f), new Vector2(-40f, 26f), false);
+        RushHourUiTheme.Hairline(panel.transform, "CaptionRule",
+            new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
+            new Vector2(0f, -50f), new Vector2(-40f, 2f), RushHourUiTheme.RuleFaintInk);
 
-        hud.chargeFill = CreateUIImage(barBg.transform, "Fill", new Color(0.30f, 0.88f, 0.45f),
+        GameObject barBg = RushHourUiTheme.Box(panel.transform, "ChargeBar", RushHourUiTheme.Track,
+            new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f),
+            new Vector2(0f, 18f), new Vector2(-40f, 26f));
+
+        hud.chargeFill = RushHourUiTheme.Box(barBg.transform, "Fill", RushHourUiTheme.Bone,
             Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f),
-            Vector2.zero, new Vector2(-6f, -6f), false).GetComponent<Image>();
+            Vector2.zero, new Vector2(-6f, -6f)).GetComponent<Image>();
         hud.chargeFill.sprite = GetUiSprite();
         hud.chargeFill.type = Image.Type.Filled;
         hud.chargeFill.fillMethod = Image.FillMethod.Horizontal;
         hud.chargeFill.fillOrigin = (int)Image.OriginHorizontal.Left;
         hud.chargeFill.fillAmount = 1f;
 
-        hud.lowCharge = CreateUIText(panel.transform, "LowCharge",
+        hud.lowCharge = RushHourUiTheme.Type(panel.transform, "LowCharge",
             "LOW CHARGE  ·  FIND A RECHARGE POINT", font, 19,
-            TextAnchor.MiddleLeft, new Color(1f, 0.45f, 0.35f), FontStyle.Bold,
+            TextAnchor.MiddleLeft, RushHourUiTheme.Blood, FontStyle.Bold,
             new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f),
-            new Vector2(20f, 54f), new Vector2(344f, 26f));
+            new Vector2(20f, 54f), new Vector2(344f, 26f), false);
 
         // --------------------------------------------------------- route readout
-        CreateUIText(canvasGo.transform, "DestinationText", "GREENFIELD COMMUNITY CLINIC", font, 30,
-            TextAnchor.MiddleCenter, new Color(0.90f, 0.94f, 0.97f), FontStyle.Bold,
+        RushHourUiTheme.Type(canvasGo.transform, "DestinationText",
+            RushHourUiTheme.Spread("GREENFIELD COMMUNITY CLINIC"), font, 24,
+            TextAnchor.MiddleCenter, RushHourUiTheme.Cream, FontStyle.Bold,
             new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0f, -26f), new Vector2(1000f, 40f));
+            new Vector2(0f, -30f), new Vector2(1000f, 34f));
 
-        hud.distanceText = CreateUIText(canvasGo.transform, "DistanceText", "0 / 500 m", font, 26,
-            TextAnchor.MiddleCenter, new Color(0.66f, 0.74f, 0.82f), FontStyle.Normal,
+        RushHourUiTheme.Hairline(canvasGo.transform, "DestinationRule",
             new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0f, -66f), new Vector2(1000f, 34f));
+            new Vector2(0f, -64f), new Vector2(560f, 2f));
 
-        hud.districtText = CreateUIText(canvasGo.transform, "DistrictText", "OLD TRANSIT CORRIDOR", font, 20,
-            TextAnchor.MiddleCenter, new Color(0.36f, 0.82f, 0.72f), FontStyle.Bold,
+        hud.distanceText = RushHourUiTheme.Type(canvasGo.transform, "DistanceText", "0 / 500 m", font, 34,
+            TextAnchor.MiddleCenter, RushHourUiTheme.Bone, FontStyle.Bold,
             new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0f, -102f), new Vector2(1000f, 28f));
+            new Vector2(0f, -84f), new Vector2(1000f, 44f));
+
+        hud.districtText = RushHourUiTheme.Type(canvasGo.transform, "DistrictText", "OLD TRANSIT CORRIDOR", font, 18,
+            TextAnchor.MiddleCenter, RushHourUiTheme.Amber, FontStyle.Bold,
+            new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+            new Vector2(0f, -124f), new Vector2(1000f, 28f));
 
         CreateUIText(canvasGo.transform, "RouteText", "GREENLINE LOGISTICS\nROUTE 7  ·  MEDICAL RUN", font, 20,
-            TextAnchor.UpperRight, new Color(0.60f, 0.68f, 0.76f), FontStyle.Bold,
+            TextAnchor.UpperRight, RushHourUiTheme.Faint, FontStyle.Bold,
             new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
             new Vector2(-28f, -26f), new Vector2(460f, 64f));
+
+        RushHourUiTheme.HintBar(canvasGo.transform, font, "A/D", "CHANGE LANE",
+            "GREENLINE LOGISTICS  \u00b7  ROUTE 7");
 
         // ----------------------------------------------------------- route banner
         GameObject bannerGo = new GameObject("RouteBanner", typeof(RectTransform), typeof(CanvasGroup));
@@ -916,52 +1118,60 @@ public static class RushHourSceneBuilder
         hud.bannerGroup.interactable = false;
         hud.bannerGroup.blocksRaycasts = false;
 
-        CreateUIImage(bannerGo.transform, "Backdrop", new Color(0.03f, 0.04f, 0.06f, 0.78f),
-            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, false);
+        RushHourUiTheme.Box(bannerGo.transform, "Backdrop", RushHourUiTheme.Panel,
+            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
 
-        CreateUIImage(bannerGo.transform, "Accent", new Color(0.30f, 0.90f, 0.56f),
+        RushHourUiTheme.Box(bannerGo.transform, "Accent", RushHourUiTheme.Amber,
             new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f),
-            Vector2.zero, new Vector2(7f, -22f), false);
+            Vector2.zero, new Vector2(7f, -22f));
+
+        RushHourUiTheme.Hairline(bannerGo.transform, "HeadRule",
+            new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
+            Vector2.zero, new Vector2(0f, 2f));
+
+        RushHourUiTheme.Hairline(bannerGo.transform, "FootRule",
+            new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f),
+            Vector2.zero, new Vector2(0f, 2f));
 
         hud.bannerTitle = CreateUIText(bannerGo.transform, "Title", "ROUTE 7  ·  MEDICAL RUN", font, 34,
-            TextAnchor.MiddleLeft, Color.white, FontStyle.Bold,
+            TextAnchor.MiddleLeft, RushHourUiTheme.Bone, FontStyle.Bold,
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
             new Vector2(34f, -24f), new Vector2(1040f, 44f));
 
-        hud.bannerBody = CreateUIText(bannerGo.transform, "Body", "", font, 21,
-            TextAnchor.UpperLeft, new Color(0.74f, 0.81f, 0.88f), FontStyle.Normal,
+        hud.bannerBody = RushHourUiTheme.Type(bannerGo.transform, "Body", "", font, 21,
+            TextAnchor.UpperLeft, RushHourUiTheme.Muted, FontStyle.Normal,
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
             new Vector2(34f, -76f), new Vector2(1040f, 64f));
 
         // ------------------------------------------------------------- result card
-        hud.resultTitle = CreateUIText(canvasGo.transform, "ResultTitle", "", font, 68,
-            TextAnchor.MiddleCenter, Color.white, FontStyle.Bold,
+        hud.resultTitle = RushHourUiTheme.Type(canvasGo.transform, "ResultTitle", "", font, 72,
+            TextAnchor.MiddleCenter, RushHourUiTheme.Bone, FontStyle.Bold,
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            new Vector2(0f, 120f), new Vector2(1400f, 96f));
+            new Vector2(0f, 132f), new Vector2(1400f, 100f));
 
-        hud.resultBody = CreateUIText(canvasGo.transform, "ResultBody", "", font, 26,
-            TextAnchor.MiddleCenter, new Color(0.80f, 0.86f, 0.92f), FontStyle.Normal,
+        hud.resultBody = RushHourUiTheme.Type(canvasGo.transform, "ResultBody", "", font, 28,
+            TextAnchor.MiddleCenter, RushHourUiTheme.Cream, FontStyle.Normal,
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            new Vector2(0f, 44f), new Vector2(1400f, 44f));
+            new Vector2(0f, 52f), new Vector2(1400f, 46f));
 
-        GameObject buttonGo = CreateUIImage(canvasGo.transform, "RestartButton",
-            new Color(0.13f, 0.62f, 0.38f, 1f),
+        Button restart = RushHourUiTheme.FramedButton(canvasGo.transform, "RestartButton", "RUN AGAIN",
+            font, 22,
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            new Vector2(0f, -60f), new Vector2(320f, 78f), true);
+            new Vector2(-178f, -60f), new Vector2(340f, 78f),
+            RushHourUiTheme.Bone, RushHourUiTheme.Bone, gameManager.RestartLevel);
 
-        Image buttonImage = buttonGo.GetComponent<Image>();
-        buttonImage.sprite = GetUiSprite();
-        buttonImage.type = Image.Type.Sliced;
+        hud.restartButton = restart.gameObject;
 
-        Button button = buttonGo.AddComponent<Button>();
-        button.targetGraphic = buttonImage;
+        // Sits beside RUN AGAIN on a lost shipment and nowhere else, so a wrecked run is never a
+        // dead end. HudController keeps it hidden and slides RUN AGAIN back to the middle for a
+        // completed delivery.
+        Button menu = RushHourUiTheme.FramedButton(canvasGo.transform, "MenuButton", "RETURN TO MENU",
+            font, 22,
+            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+            new Vector2(178f, -60f), new Vector2(340f, 78f),
+            RushHourUiTheme.Bone, RushHourUiTheme.Bone, gameManager.ReturnToMenu);
 
-        CreateUIText(buttonGo.transform, "Label", "RUN AGAIN", font, 26,
-            TextAnchor.MiddleCenter, Color.white, FontStyle.Bold,
-            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-
-        UnityEventTools.AddPersistentListener(button.onClick, gameManager.RestartLevel);
-        hud.restartButton = buttonGo;
+        hud.menuButton = menu.gameObject;
 
         // --------------------------------------------------------- HudController
         HudController hudController = canvasGo.AddComponent<HudController>();
@@ -979,8 +1189,23 @@ public static class RushHourSceneBuilder
         SetRef(so, "resultTitleText", hud.resultTitle);
         SetRef(so, "resultBodyText", hud.resultBody);
         SetRef(so, "restartButton", hud.restartButton);
+        SetRef(so, "menuButton", hud.menuButton);
         SetRef(so, "flashOverlay", hud.flashOverlay);
+        SetRef(so, "resultScrim", hud.resultScrim);
         SetRef(so, "gameManager", gameManager);
+
+        // The interface palette, carried into the runtime component so the HUD is set in the same
+        // inks as the menu. HudController owns these from here on; nothing else writes them.
+        SerializedProperty chargeHigh = so.FindProperty("chargeHighColor");
+        if (chargeHigh != null) chargeHigh.colorValue = RushHourUiTheme.Bone;
+        SerializedProperty chargeMid = so.FindProperty("chargeMidColor");
+        if (chargeMid != null) chargeMid.colorValue = RushHourUiTheme.Amber;
+        SerializedProperty chargeLow = so.FindProperty("chargeLowColor");
+        if (chargeLow != null) chargeLow.colorValue = RushHourUiTheme.Blood;
+        SerializedProperty successTint = so.FindProperty("successColor");
+        if (successTint != null) successTint.colorValue = RushHourUiTheme.Amber;
+        SerializedProperty failureTint = so.FindProperty("failureColor");
+        if (failureTint != null) failureTint.colorValue = RushHourUiTheme.Blood;
 
         SerializedProperty flashFade = so.FindProperty("flashFadeSpeed");
         if (flashFade != null) flashFade.floatValue = 0.9f; // let the impact colour survive the hit-stop
@@ -1186,7 +1411,7 @@ public static class RushHourSceneBuilder
         GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
     }
 
-    private static GameObject CreateUIImage(Transform parent, string name, Color color,
+    public static GameObject CreateUIImage(Transform parent, string name, Color color,
         Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot, Vector2 anchoredPos, Vector2 sizeDelta,
         bool raycastTarget)
     {
@@ -1205,7 +1430,7 @@ public static class RushHourSceneBuilder
         return go;
     }
 
-    private static Text CreateUIText(Transform parent, string name, string content, Font font,
+    public static Text CreateUIText(Transform parent, string name, string content, Font font,
         int fontSize, TextAnchor anchor, Color color, FontStyle style,
         Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot, Vector2 anchoredPos, Vector2 sizeDelta)
     {
@@ -1231,7 +1456,7 @@ public static class RushHourSceneBuilder
         return text;
     }
 
-    private static Font GetFont()
+    public static Font GetFont()
     {
         Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (font == null) font = Resources.GetBuiltinResource<Font>("Arial.ttf");
@@ -1239,7 +1464,7 @@ public static class RushHourSceneBuilder
         return font;
     }
 
-    private static Sprite GetUiSprite()
+    public static Sprite GetUiSprite()
     {
         Sprite sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
         if (sprite == null) sprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/UISprite.psd");
@@ -1357,7 +1582,7 @@ public static class RushHourSceneBuilder
         AssetDatabase.SaveAssets();
     }
 
-    private static void EnsureFolder(string path)
+    public static void EnsureFolder(string path)
     {
         if (AssetDatabase.IsValidFolder(path)) return;
 

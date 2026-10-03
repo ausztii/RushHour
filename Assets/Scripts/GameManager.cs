@@ -36,6 +36,10 @@ public class GameManager : MonoBehaviour
     [Tooltip("Delay in seconds (realtime) before auto-restarting.")]
     public float restartDelay = 1.0f;
 
+    [Header("Navigation")]
+    [Tooltip("Scene name of the title screen the player returns to out of a lost shipment.")]
+    public string menuSceneName = "StartScreen";
+
     [Header("References")]
     [Tooltip("The HUD that presents every message to the player.")]
     [SerializeField] private HudController hud;
@@ -167,5 +171,17 @@ public class GameManager : MonoBehaviour
         UnityEngine.SceneManagement.SceneManager.LoadScene(
             UnityEngine.SceneManagement.SceneManager.GetActiveScene().name
         );
+    }
+
+    /// <summary>
+    /// Leaves the run for the title screen. Hooked to the HUD's return button, which is offered
+    /// alongside the restart so a lost shipment is never a dead end.
+    /// </summary>
+    public void ReturnToMenu()
+    {
+        // The run freezes at zero on a lost shipment, and the title screen would come up frozen
+        // with it if that were carried across the load.
+        Time.timeScale = 1f;
+        UnityEngine.SceneManagement.SceneManager.LoadScene(menuSceneName);
     }
 }

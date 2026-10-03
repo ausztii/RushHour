@@ -13,10 +13,11 @@ Piloting a lightweight electric delivery pod, Kai must navigate streets plagued 
 ## Gameplay
 
 - **Movement:** The vehicle drives forward automatically. Use **A/D** or **Left/Right arrow keys** to dodge between lanes.
-- **Fuel/Charge:** Depletes constantly over time, and faster while dodging. Running out ends the delivery.
+- **Battery/Charge:** Depletes constantly over time, and faster while dodging. Running out ends the delivery.
 - **Obstacles:** Potholes, barricades, and debris spawn ahead with increasing frequency — colliding without a shield ends the run.
-- **Protection Collectibles:** Glowing pickups representing small infrastructure investments (reinforced roads, cleared lanes). Grants temporary shield — absorbs one obstacle hit instead of crashing.
-- **Goal:** Reach the delivery distance (or the clinic itself) before running out of fuel or crashing.
+- **Protection Collectibles (Shields):** Glowing pickups representing small infrastructure investments (reinforced roads, cleared lanes). Grants temporary shield — absorbs one obstacle hit instead of crashing.
+- **Charge Collectibles:** Restores a portion of your battery to keep the pod running.
+- **Goal:** Reach the delivery distance (or the clinic itself) before running out of charge or crashing.
 
 ## Win / Fail States
 
@@ -24,56 +25,60 @@ Piloting a lightweight electric delivery pod, Kai must navigate streets plagued 
 |---|---|
 | ✅ Delivered | Distance goal reached / clinic trigger entered |
 | ❌ Crashed | Collision with an obstacle while unshielded |
-| ❌ Out of Charge | Fuel reaches zero before delivery |
+| ❌ Out of Charge | Battery reaches zero before delivery |
 
 ## SDG Mapping
 
-**SDG 11 — Sustainable Cities and Communities.** The game's obstacles represent real consequences of poor urban infrastructure (potholes, stalled construction, congestion) on last-mile logistics, while the fuel mechanic reflects the added strain poor road conditions place on low-emission micro-vehicles. Protection collectibles represent the tangible benefit of targeted infrastructure investment.
+**SDG 11 — Sustainable Cities and Communities.** The game's obstacles represent real consequences of poor urban infrastructure (potholes, stalled construction, congestion) on last-mile logistics, while the battery mechanic reflects the added strain poor road conditions place on low-emission micro-vehicles. Protection collectibles represent the tangible benefit of targeted infrastructure investment.
 
-## Current Scope (Early Version)
-
-This version focuses on **core gameplay systems** only — environment art and atmosphere (Kerala-inspired setting via Aura volumetric lighting) are planned for a later milestone and not yet implemented. The current build uses placeholder geometry (boxes/planes) for all environment elements.
+## Current Scope
 
 ### Implemented
 - Auto-forward driving with lane-dodge controls
-- Fuel system with dodge-based drain penalty
+- Battery system with dodge-based drain penalty and charge pickups
 - Obstacle spawner with time-based difficulty ramp
 - Shield/protection collectible system
-- Distance-based delivery goal
+- Distance-based delivery goal and Clinic trigger
 - Win/fail state handling with restart
+- Full UI (battery bar, distance counter, status text) via HudController
+- Start screen / main menu with custom gritty UI
+- Visual polish: Camera shake, pod signals, road scrolling
 
 ### Not Yet Implemented
 - Kerala-themed environment art and Aura volumetric atmosphere
-- Start screen / main menu
 - Sound design
 - Polished vehicle and obstacle models
-- Full UI (fuel bar, distance counter, status text) — scripts support it, UI elements not yet built in-scene
 
 ## Scripts
 
 | Script | Purpose |
 |---|---|
 | `CarController.cs` | Forward movement, lane-dodge input, crash handling |
-| `FuelSystem.cs` | Fuel drain (base + dodge penalty), triggers fuel-out failure |
+| `BatterySystem.cs` | Battery drain (base + dodge penalty), triggers out of charge failure |
 | `ShieldSystem.cs` | Temporary invincibility from collectibles |
 | `ObstacleSpawner.cs` | Spawns obstacles/collectibles ahead of the car, ramps difficulty over time |
 | `Obstacle.cs` | Collision detection, shield consumption, self-cleanup |
-| `Collectible.cs` | Pickup detection, activates shield |
+| `ShieldPickup.cs` / `ChargePickup.cs`| Pickup detection, activates shield or restores battery |
 | `GameManager.cs` | Tracks delivery distance, win/fail states, restart |
+| `HudController.cs` | Manages all in-game UI (distance, battery bar, game over screens) |
+| `CameraShake.cs` / `PodSignals.cs` | Visual juice (shake on crash, turn signals/braking lights) |
+| `RoadScroller.cs` | Visual effect of road moving beneath the pod |
+| `StartScreenController.cs` | Manages the main menu and scene transitions |
+| `StartScreenBackdrop.cs` | Animates the 3D backdrop of the start screen |
+| `MenuButtonEffect.cs` | Stylized UI button interactions (tilting and brush strokes) |
+| `ClinicTrigger.cs` | Detects when the pod reaches the final clinic destination |
 
 ## Setup
 
 1. Tag the car GameObject as `Player`.
-2. Attach `CarController`, `FuelSystem`, and `ShieldSystem` to the Car.
-3. Parent the Main Camera to the Car (local position ~`0, 3, -6`, slight downward tilt).
-4. Create obstacle and collectible prefabs with trigger colliders, attach `Obstacle.cs` / `Collectible.cs` respectively.
+2. Attach `CarController`, `BatterySystem`, `ShieldSystem`, and `PodSignals` to the Car.
+3. Parent the Main Camera to the Car (local position ~`0, 3, -6`, slight downward tilt) and attach `CameraShake`.
+4. Create obstacle and collectible prefabs with trigger colliders, attach `Obstacle.cs`, `ShieldPickup.cs`, or `ChargePickup.cs` respectively.
 5. Create empty `Spawner` and `GameManager` objects, attach `ObstacleSpawner.cs` and `GameManager.cs`.
-6. Wire up Inspector references (Car, GameManager, prefabs) across all scripts.
-7. **Note:** If you see an `InvalidOperationException` about `UnityEngine.Input`, go to **Edit → Project Settings → Player → Active Input Handling** and set it to **Both**.
+6. Set up the Canvas UI and attach `HudController.cs`.
+7. Wire up Inspector references (Car, GameManager, prefabs, UI elements) across all scripts.
+8. **Note:** If you see an `InvalidOperationException` about `UnityEngine.Input`, go to **Edit → Project Settings → Player → Active Input Handling** and set it to **Both**.
 
-## Team
-
-*(Add your group member names and roles here.)*
 
 ## Course Context
 

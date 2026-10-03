@@ -161,13 +161,33 @@ public class Obstacle : MonoBehaviour
     /// Validates that the obstacle is genuinely within collision range of the car in both X and Z.
     /// Prevents phantom triggers, out-of-lane collisions, and premature crashes.
     /// </summary>
+    /// <summary>
+    /// How far the car may legitimately be at the moment this hazard's trigger is
+    /// reported. A trigger fires only on the physics tick where the colliders FIRST
+    /// overlap, so deltaZ there is already (hazard half-depth + car half-depth) plus up
+    /// to one tick of closing travel. A hard 2.5m cap was narrower than this hazard's
+    /// own first-contact distance for the 3.2m-deep Congestion (3.3m), so the impact was
+    /// rejected - and an enter event is never retried, so nothing ever resolved.
+    /// </summary>
+    private float LongitudinalAllowance(Transform carTransform)
+    {
+        Collider mine = GetComponent<Collider>();
+        Collider theirs = carTransform != null ? carTransform.GetComponentInChildren<Collider>() : null;
+
+        if (mine == null || theirs == null) return 2.5f;
+
+        // Sum of the two half-depths closes the gap; +1m absorbs the worst case of one
+        // physics tick of closing travel (25 m/s * 0.02s = 0.5m) with margin to spare.
+        return mine.bounds.extents.z + theirs.bounds.extents.z + 1f;
+    }
+
     private bool IsSpatialHit(Transform carTransform)
     {
         if (carTransform == null) return false;
 
         // 1. Check longitudinal Z distance (must be close to the car bumper, not 50m ahead!)
         float deltaZ = transform.position.z - carTransform.position.z;
-        if (deltaZ > 2.5f || deltaZ < -3.5f)
+        if (deltaZ > LongitudinalAllowance(carTransform) || deltaZ < -3.5f)
         {
             return false;
         }
