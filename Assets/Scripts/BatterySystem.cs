@@ -42,7 +42,7 @@ public class BatterySystem : MonoBehaviour
 
         if (gameManager == null)
         {
-            gameManager = Object.FindFirstObjectByType<GameManager>();
+            gameManager = Object.FindAnyObjectByType<GameManager>();
         }
     }
 

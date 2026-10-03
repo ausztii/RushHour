@@ -48,7 +48,7 @@ public class RoadScroller : MonoBehaviour
         // Auto-find the car script if not assigned
         if (carController == null)
         {
-            carController = Object.FindFirstObjectByType<CarController>();
+            carController = Object.FindAnyObjectByType<CarController>();
         }
     }
 

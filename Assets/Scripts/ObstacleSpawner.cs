@@ -84,8 +84,8 @@ public class ObstacleSpawner : MonoBehaviour
         hasSpawnedFirstWave = false;
 
         // Auto-find car reference
-        if (carController == null) carController = Object.FindFirstObjectByType<CarController>();
-        if (gameManager == null) gameManager = Object.FindFirstObjectByType<GameManager>();
+        if (carController == null) carController = Object.FindAnyObjectByType<CarController>();
+        if (gameManager == null) gameManager = Object.FindAnyObjectByType<GameManager>();
     }
 
     private void Update()
@@ -230,7 +230,7 @@ public class ObstacleSpawner : MonoBehaviour
     {
         get
         {
-            if (gameManager == null) gameManager = Object.FindFirstObjectByType<GameManager>();
+            if (gameManager == null) gameManager = Object.FindAnyObjectByType<GameManager>();
             return gameManager != null ? gameManager.DistanceTravelled : 0f;
         }
     }
@@ -291,7 +291,7 @@ public class ObstacleSpawner : MonoBehaviour
     /// </summary>
     public void ClearAllObstacles()
     {
-        Obstacle[] obstacles = Object.FindObjectsByType<Obstacle>(FindObjectsSortMode.None);
+        Obstacle[] obstacles = Object.FindObjectsByType<Obstacle>(FindObjectsInactive.Exclude);
         foreach (Obstacle obs in obstacles)
         {
             if (obs != null)

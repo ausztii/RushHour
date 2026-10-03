@@ -147,7 +147,7 @@ public class CarController : MonoBehaviour
             battery = GetComponent<BatterySystem>();
 
         if (gameManager == null)
-            gameManager = Object.FindFirstObjectByType<GameManager>();
+            gameManager = Object.FindAnyObjectByType<GameManager>();
     }
 
     /// <summary>
@@ -482,7 +482,7 @@ public class CarController : MonoBehaviour
         }
 
         // Clear active obstacles on the road so car doesn't immediately crash again
-        ObstacleSpawner spawner = Object.FindFirstObjectByType<ObstacleSpawner>();
+        ObstacleSpawner spawner = Object.FindAnyObjectByType<ObstacleSpawner>();
         if (spawner != null)
         {
             spawner.ClearAllObstacles();
@@ -490,7 +490,7 @@ public class CarController : MonoBehaviour
         }
         else
         {
-            Obstacle[] obstacles = Object.FindObjectsByType<Obstacle>(FindObjectsSortMode.None);
+            Obstacle[] obstacles = Object.FindObjectsByType<Obstacle>(FindObjectsInactive.Exclude);
             foreach (Obstacle obs in obstacles)
             {
                 if (obs != null) Destroy(obs.gameObject);

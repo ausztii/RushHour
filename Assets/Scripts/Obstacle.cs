@@ -80,7 +80,7 @@ public class Obstacle : MonoBehaviour
     {
         if (carTransform != null) return;
 
-        CarController car = Object.FindFirstObjectByType<CarController>();
+        CarController car = Object.FindAnyObjectByType<CarController>();
         if (car != null)
         {
             carTransform = car.transform;

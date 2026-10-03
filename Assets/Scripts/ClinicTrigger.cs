@@ -30,7 +30,7 @@ public class ClinicTrigger : MonoBehaviour
 
         if (gameManager == null)
         {
-            gameManager = Object.FindFirstObjectByType<GameManager>();
+            gameManager = Object.FindAnyObjectByType<GameManager>();
         }
     }
 

@@ -70,7 +70,7 @@ public class GameManager : MonoBehaviour
     {
         if (car == null)
         {
-            CarController carController = Object.FindFirstObjectByType<CarController>();
+            CarController carController = Object.FindAnyObjectByType<CarController>();
             if (carController != null) car = carController.transform;
         }
 
@@ -79,8 +79,8 @@ public class GameManager : MonoBehaviour
             startPosition = car.position;
         }
 
-        if (hud == null) hud = Object.FindFirstObjectByType<HudController>();
-        if (cameraShake == null) cameraShake = Object.FindFirstObjectByType<CameraShake>();
+        if (hud == null) hud = Object.FindAnyObjectByType<HudController>();
+        if (cameraShake == null) cameraShake = Object.FindAnyObjectByType<CameraShake>();
     }
 
     private void Update()
